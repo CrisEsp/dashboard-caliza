@@ -257,6 +257,14 @@ body {
   grid-template-columns: 1fr 1fr;
 }
 
+.charts-row.single {
+  grid-template-columns: 1fr;
+}
+
+.charts-row.equal {
+  grid-template-columns: 1fr 1fr;
+}
+
 .chart-card {
   background: var(--bg-card);
   border: 1px solid var(--border);

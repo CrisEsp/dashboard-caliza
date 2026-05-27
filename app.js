@@ -18,7 +18,6 @@ const COLORS = {
 };
 
 let charts = {};
-let refreshCountdown = REFRESH_INTERVAL / 1000;
 
 function buildGvizUrl(sheet, query) {
   const base = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq`;
@@ -137,7 +136,7 @@ function updateKPIs(data) {
 
   if (capasLatest.rows.length > 0) {
     const r = capasLatest.rows[0];
-    const pallets = parseNumber(r[2]);
+    const pallets = parseNumber(r[9]);
     const sacos = parseNumber(r[7]) || pallets * 5;
     document.getElementById('totalPallets').textContent = formatNumber(pallets);
     document.getElementById('palletsSacos').textContent = `Equiv. sacos: ${formatNumber(sacos)}`;
@@ -419,19 +418,14 @@ function createPalletChart(data) {
 }
 
 function startRefreshTimer() {
-  refreshCountdown = REFRESH_INTERVAL / 1000;
-  const timerEl = document.getElementById('refreshTimer');
+  const now = new Date();
+  const msElapsed = (now.getMinutes() % 15) * 60000 + now.getSeconds() * 1000 + now.getMilliseconds();
+  const msUntilNext = REFRESH_INTERVAL - msElapsed;
 
-  setInterval(() => {
-    refreshCountdown--;
-    if (refreshCountdown <= 0) {
-      refreshCountdown = REFRESH_INTERVAL / 1000;
-      refreshData();
-    }
-    const m = Math.floor(refreshCountdown / 60);
-    const s = refreshCountdown % 60;
-    timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
-  }, 1000);
+  setTimeout(() => {
+    refreshData();
+    setInterval(refreshData, REFRESH_INTERVAL);
+  }, msUntilNext);
 }
 
 async function refreshData() {
@@ -446,7 +440,7 @@ async function refreshData() {
     createAccumChart(data);
     createPieChart(data);
     createBarChart(data);
-    createPalletChart(data);
+
 
     const now = new Date();
     document.getElementById('lastUpdate').textContent =
