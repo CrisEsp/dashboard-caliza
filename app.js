@@ -474,4 +474,81 @@ async function init() {
   }
 }
 
+function toggleDownload() {
+  const section = document.getElementById('downloadSection');
+  const btn = document.querySelector('.export-btn');
+  const visible = section.style.display !== 'none';
+  section.style.display = visible ? 'none' : 'block';
+  btn.classList.toggle('active', !visible);
+}
+
+async function downloadData() {
+  const startEl = document.getElementById('dlStart');
+  const endEl = document.getElementById('dlEnd');
+  const sheetSel = document.getElementById('dlSheet');
+  const btn = document.getElementById('dlBtn');
+  const status = document.getElementById('dlStatus');
+
+  if (!startEl.value || !endEl.value) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Seleccione fecha de inicio y fin.';
+    return;
+  }
+  if (startEl.value >= endEl.value) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'La fecha de inicio debe ser anterior a la fecha fin.';
+    return;
+  }
+
+  const startDt = startEl.value.replace('T', ' ');
+  const endDt = endEl.value.replace('T', ' ');
+  const sheetType = sheetSel.value;
+
+  btn.disabled = true;
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'Consultando datos...';
+
+  const inRange = (r) => {
+    const dt = r[1] ? String(r[1]).substring(0, 16) : '';
+    return dt >= startDt && dt <= endDt;
+  };
+
+  try {
+    const wb = XLSX.utils.book_new();
+    let totalRows = 0;
+
+    if (sheetType === 'sacos' || sheetType === 'ambos') {
+      const data = await fetchSheetData(SHEETS.sacosArmAnt, 'SELECT * ORDER BY B');
+      const filtered = data.rows.filter(inRange);
+      const wsData = [data.headers, ...filtered];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Sacos-Arm-Ant');
+      totalRows += filtered.length;
+    }
+
+    if (sheetType === 'capas' || sheetType === 'ambos') {
+      const data = await fetchSheetData(SHEETS.capas, 'SELECT * ORDER BY B');
+      const filtered = data.rows.filter(inRange);
+      const wsData = [data.headers, ...filtered];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Capas-Total-Arm');
+      totalRows += filtered.length;
+    }
+
+    const fromLabel = startEl.value.replace('T', '_').replace(':', 'h').substring(0, 13);
+    const toLabel = endEl.value.replace('T', '_').replace(':', 'h').substring(0, 13);
+    XLSX.writeFile(wb, `Conteo Sacos_${fromLabel}_a_${toLabel}.xlsx`);
+
+    status.style.color = totalRows > 0 ? 'var(--green)' : 'var(--orange)';
+    status.textContent = totalRows > 0
+      ? `Descargado: ${totalRows} registro(s).`
+      : 'No se encontraron registros en ese período.';
+  } catch (err) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Error al descargar: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', init);

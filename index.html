@@ -6,6 +6,7 @@
   <title>UNACEM - Dashboard Proyecto Caliza</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -24,6 +25,14 @@
       </div>
     </div>
     <div class="header-right">
+      <button class="export-btn" onclick="toggleDownload()">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Exportar Reporte
+      </button>
       <div class="status-badge" id="statusBadge">
         <span class="status-dot"></span>
         <span>En vivo</span>
@@ -43,6 +52,50 @@
   </header>
 
   <main class="dashboard">
+    <!-- Download Section -->
+    <section class="download-section" id="downloadSection" style="display:none">
+      <div class="download-card">
+        <div class="download-header">
+          <div class="download-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <h3>Descargar Datos</h3>
+          </div>
+          <span class="badge">XLSX</span>
+        </div>
+        <div class="download-controls">
+          <div class="dl-field">
+            <label for="dlStart">Período Inicio</label>
+            <input type="datetime-local" id="dlStart" class="dl-input">
+          </div>
+          <div class="dl-field">
+            <label for="dlEnd">Período Fin</label>
+            <input type="datetime-local" id="dlEnd" class="dl-input">
+          </div>
+          <div class="dl-field">
+            <label for="dlSheet">Fuente de datos</label>
+            <select id="dlSheet" class="dl-input">
+              <option value="sacos">Sacos (Arm-Ant)</option>
+              <option value="capas">Capas</option>
+              <option value="ambos">Ambos</option>
+            </select>
+          </div>
+          <button id="dlBtn" class="dl-btn" onclick="downloadData()">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Descargar Excel
+          </button>
+        </div>
+        <p class="dl-hint" id="dlStatus"></p>
+      </div>
+    </section>
+
     <!-- KPI Cards -->
     <section class="kpi-grid">
       <div class="kpi-card" id="kpiTotalSacos">
