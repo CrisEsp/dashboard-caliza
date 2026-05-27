@@ -576,10 +576,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   .kpi-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-  .charts-row {
-    grid-template-columns: 1fr;
-  }
-  .charts-row:last-of-type {
+  .charts-row,
+  .charts-row.equal,
+  .charts-row.single {
     grid-template-columns: 1fr;
   }
 }
