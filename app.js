@@ -9,7 +9,7 @@ const SHEETS = {
 
 const COLORS = {
   armaduro: '#3b82f6',
-  antihumedad: '#8b5cf6',
+  armaduro_antihumedad: '#8b5cf6',
   selvalegre: '#22c55e',
   selvAnti: '#06b6d4',
   campeon: '#f59e0b',
@@ -109,7 +109,7 @@ function updateKPIs(data) {
     const total = parseNumber(r[7]);
     const tracker = parseNumber(r[6]);
     const armaduro = parseNumber(r[2]);
-    const antihumedad = parseNumber(r[3]);
+    const armaduro_antihumedad = parseNumber(r[3]);
     const selvalegre = parseNumber(r[4]);
     const campeon = parseNumber(r[5]);
     const durMin = parseNumber(r[8]);
@@ -117,7 +117,7 @@ function updateKPIs(data) {
     document.getElementById('totalSacos').textContent = formatNumber(total);
     document.getElementById('totalSacosTracker').textContent = `Tracker: ${formatNumber(tracker)}`;
     document.getElementById('totalArmaduro').textContent = formatNumber(armaduro);
-    document.getElementById('armaduroAnti').textContent = `Anti-humedad: ${formatNumber(antihumedad)}`;
+    document.getElementById('armaduroAnti').textContent = `Armaduro Antihumedad: ${formatNumber(armaduro_antihumedad)}`;
     document.getElementById('totalSelvalegre').textContent = formatNumber(selvalegre);
 
     const hours = Math.floor(durMin / 60);
@@ -209,7 +209,7 @@ function createAccumChart(data) {
   const rows = [...data.sacosHistory.rows].reverse();
   const labels = rows.map(r => formatTime(r[0]));
   const armaduro = [];
-  const antihumedad = [];
+  const armaduro_antihumedad = [];
   const selvalegre = [];
   const campeon = [];
   const totals = [];
@@ -221,7 +221,7 @@ function createAccumChart(data) {
     acumSelv = parseNumber(r[3]) || acumSelv;
     acumCamp = parseNumber(r[4]) || acumCamp;
     armaduro.push(acumArm);
-    antihumedad.push(acumAnti);
+    armaduro_antihumedad.push(acumAnti);
     selvalegre.push(acumSelv);
     campeon.push(acumCamp);
     totals.push(parseNumber(r[5]));
@@ -266,9 +266,9 @@ function createAccumChart(data) {
           pointHoverRadius: 3,
         },
         {
-          label: 'Anti-Humedad',
-          data: antihumedad,
-          borderColor: COLORS.antihumedad,
+          label: 'Armaduro Antihumedad',
+          data: armaduro_antihumedad,
+          borderColor: COLORS.armaduro_antihumedad,
           tension: 0.3,
           borderWidth: 1.5,
           pointRadius: 0,
@@ -287,15 +287,15 @@ function createPieChart(data) {
   if (!data.sacosLatest.rows.length) return;
   const r = data.sacosLatest.rows[0];
   const armaduro = parseNumber(r[2]);
-  const antihumedad = parseNumber(r[3]);
+  const armaduro_antihumedad = parseNumber(r[3]);
   const selvalegre = parseNumber(r[4]);
   const campeon = parseNumber(r[5]);
 
-  const values = [armaduro, antihumedad, selvalegre, campeon].filter(v => v > 0);
+  const values = [armaduro, armaduro_antihumedad, selvalegre, campeon].filter(v => v > 0);
   const labels = [];
   const colors = [];
   if (armaduro > 0) { labels.push('Armaduro'); colors.push(COLORS.armaduro); }
-  if (antihumedad > 0) { labels.push('Anti-Humedad'); colors.push(COLORS.antihumedad); }
+  if (armaduro_antihumedad > 0) { labels.push('Armaduro Antihumedad'); colors.push(COLORS.armaduro_antihumedad); }
   if (selvalegre > 0) { labels.push('Selvalegre'); colors.push(COLORS.selvalegre); }
   if (campeon > 0) { labels.push('Campeón'); colors.push(COLORS.campeon); }
 
@@ -350,7 +350,7 @@ function createBarChart(data) {
 
   const items = [
     { label: 'Armaduro', value: parseNumber(r[2]), color: COLORS.armaduro },
-    { label: 'Anti-Humedad', value: parseNumber(r[3]), color: COLORS.antihumedad },
+    { label: 'Armaduro Antihumedad', value: parseNumber(r[3]), color: COLORS.armaduro_antihumedad },
     { label: 'Selvalegre', value: parseNumber(r[4]), color: COLORS.selvalegre },
     { label: 'Campeón', value: parseNumber(r[5]), color: COLORS.campeon },
   ].filter(i => i.value > 0);
