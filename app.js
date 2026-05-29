@@ -1,9 +1,11 @@
 const SPREADSHEET_ID = '1nFekuqaEblC0Sti9VzwAPVDOWwWj3jO2XphW0XnL9mE';
 const REFRESH_INTERVAL = 15 * 60 * 1000;
 
+// IP de la PC donde corre FFmpeg + server.py (cambiar si es distinta)
+const CAMERA_HOST = '10.52.0.108';
 const CAMERA_STREAMS = {
-  sacos:   'http://localhost:8080/sacos.m3u8',
-  pallets: 'http://localhost:8080/pallets.m3u8',
+  sacos:   `http://${CAMERA_HOST}:8080/streams/sacos.m3u8`,
+  pallets: `http://${CAMERA_HOST}:8080/streams/pallets.m3u8`,
 };
 
 const SHEETS = {
