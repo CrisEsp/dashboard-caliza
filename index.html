@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -175,6 +176,65 @@
           <span class="kpi-label">Tasa Producción</span>
           <span class="kpi-value" id="tasaProduccion">--</span>
           <span class="kpi-sub">sacos/hora</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Camera Feeds -->
+    <section class="cameras-row">
+      <div class="camera-card">
+        <div class="camera-header">
+          <div class="camera-title">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            <h3>Cámara — Conteo de Sacos</h3>
+          </div>
+          <div class="camera-status" id="cam1Status">
+            <span class="status-dot"></span>
+            <span>Conectando...</span>
+          </div>
+        </div>
+        <div class="camera-container">
+          <video id="cam1Video" class="camera-feed" muted playsinline></video>
+          <div class="camera-offline" id="cam1Offline">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            <p>Sin señal de video</p>
+            <span>Verifique que FFmpeg esté activo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="camera-card">
+        <div class="camera-header">
+          <div class="camera-title">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            <h3>Cámara — Conteo de Pallets</h3>
+          </div>
+          <div class="camera-status" id="cam2Status">
+            <span class="status-dot"></span>
+            <span>Conectando...</span>
+          </div>
+        </div>
+        <div class="camera-container">
+          <video id="cam2Video" class="camera-feed" muted playsinline></video>
+          <div class="camera-offline" id="cam2Offline">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            <p>Sin señal de video</p>
+            <span>Verifique que FFmpeg esté activo</span>
+          </div>
         </div>
       </div>
     </section>

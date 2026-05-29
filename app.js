@@ -1,6 +1,11 @@
 const SPREADSHEET_ID = '1nFekuqaEblC0Sti9VzwAPVDOWwWj3jO2XphW0XnL9mE';
 const REFRESH_INTERVAL = 15 * 60 * 1000;
 
+const CAMERA_STREAMS = {
+  sacos:   'http://localhost:8080/sacos.m3u8',
+  pallets: 'http://localhost:8080/pallets.m3u8',
+};
+
 const SHEETS = {
   sacosArmAnt: 'Sacos-Arm-Ant-Total',
   sacosSelvAnt: 'Sacos-Selv-Ant-Total',
@@ -455,11 +460,54 @@ async function refreshData() {
   }
 }
 
+function initCameraFeeds() {
+  const cameras = [
+    { key: 'sacos',   videoId: 'cam1Video', statusId: 'cam1Status', offlineId: 'cam1Offline' },
+    { key: 'pallets', videoId: 'cam2Video', statusId: 'cam2Status', offlineId: 'cam2Offline' },
+  ];
+
+  cameras.forEach(({ key, videoId, statusId, offlineId }) => {
+    const video = document.getElementById(videoId);
+    const statusEl = document.getElementById(statusId);
+    const offlineEl = document.getElementById(offlineId);
+    const url = CAMERA_STREAMS[key];
+
+    const setOnline = () => {
+      offlineEl.style.display = 'none';
+      video.style.display = 'block';
+      statusEl.classList.remove('error');
+      statusEl.querySelector('span:last-child').textContent = 'En vivo';
+    };
+
+    const setOffline = () => {
+      offlineEl.style.display = 'flex';
+      video.style.display = 'none';
+      statusEl.classList.add('error');
+      statusEl.querySelector('span:last-child').textContent = 'Sin señal';
+    };
+
+    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+      const hls = new Hls({ liveSyncDurationCount: 1, liveMaxLatencyDurationCount: 3, lowLatencyMode: true });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); setOnline(); });
+      hls.on(Hls.Events.ERROR, (e, data) => { if (data.fatal) setOffline(); });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.addEventListener('loadedmetadata', () => { video.play(); setOnline(); });
+      video.addEventListener('error', setOffline);
+    } else {
+      setOffline();
+    }
+  });
+}
+
 async function init() {
   try {
     await refreshData();
     document.getElementById('loadingOverlay').classList.add('hidden');
     startRefreshTimer();
+    initCameraFeeds();
   } catch (err) {
     console.error('Init error:', err);
     document.getElementById('loadingOverlay').innerHTML =
