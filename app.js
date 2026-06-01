@@ -25,6 +25,7 @@ const COLORS = {
 };
 
 let charts = {};
+let rangeMode = false;
 
 function buildGvizUrl(sheet, query) {
   const base = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq`;
@@ -73,8 +74,8 @@ function parseCSV(text) {
 }
 
 function parseNumber(val) {
-  if (!val || val === '') return 0;
-  return parseFloat(val.replace(',', '.')) || 0;
+  if (val == null || val === '') return 0;
+  return parseFloat(String(val).replace(',', '.')) || 0;
 }
 
 function formatNumber(num) {
@@ -98,9 +99,9 @@ async function fetchSheetData(sheet, query) {
 async function loadAllData() {
   const [sacosLatest, sacosHistory, capasLatest, capasHistory, selvLatest] = await Promise.all([
     fetchSheetData(SHEETS.sacosArmAnt, 'SELECT * ORDER BY B DESC LIMIT 1'),
-    fetchSheetData(SHEETS.sacosArmAnt, 'SELECT B,C,D,E,F,G,H,I ORDER BY B DESC LIMIT 50'),
+    fetchSheetData(SHEETS.sacosArmAnt, 'SELECT B,C,D,E,F,G,H,I ORDER BY B DESC LIMIT 100'),
     fetchSheetData(SHEETS.capas, "SELECT * WHERE A != 'periodo_inicio' ORDER BY B DESC LIMIT 1"),
-    fetchSheetData(SHEETS.capas, "SELECT B,C,F,G,H WHERE A != 'periodo_inicio' ORDER BY B DESC LIMIT 50"),
+    fetchSheetData(SHEETS.capas, "SELECT B,C,F,G,H,J WHERE A != 'periodo_inicio' ORDER BY B DESC LIMIT 100"),
     fetchSheetData(SHEETS.sacosSelvAnt, 'SELECT * ORDER BY B DESC LIMIT 1'),
   ]);
 
@@ -146,14 +147,14 @@ function updateKPIs(data) {
     const pallets = parseNumber(r[9]);
     const sacos = parseNumber(r[7]) || pallets * 5;
     document.getElementById('totalPallets').textContent = formatNumber(pallets);
-    document.getElementById('palletsSacos').textContent = `Equiv. sacos: ${formatNumber(sacos)}`;
+    document.getElementById('palletsSacos').textContent = `Pallets: ${formatNumber(sacos)}`;
   }
 }
 
 function updateTable(data) {
   const { sacosHistory } = data;
   const tbody = document.getElementById('tableBody');
-  const rows = sacosHistory.rows.slice(0, 20);
+  const rows = sacosHistory.rows.slice(0, 100);
 
   document.getElementById('tableCount').textContent = `${rows.length} registros`;
 
@@ -190,7 +191,7 @@ function getChartDefaults() {
         titleFont: { family: 'Inter', weight: '600' },
         bodyFont: { family: 'Inter' },
         callbacks: {
-          label: (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.parsed.y || ctx.parsed)}`,
+          label: (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.parsed.y ?? ctx.parsed)}`,
         },
       },
     },
@@ -220,17 +221,12 @@ function createAccumChart(data) {
   const campeon = [];
   const totals = [];
 
-  let acumArm = 0, acumAnti = 0, acumSelv = 0, acumCamp = 0;
   rows.forEach(r => {
-    acumArm = parseNumber(r[1]) || acumArm;
-    acumAnti = parseNumber(r[2]) || acumAnti;
-    acumSelv = parseNumber(r[3]) || acumSelv;
-    acumCamp = parseNumber(r[4]) || acumCamp;
-    armaduro.push(acumArm);
-    armaduro_antihumedad.push(acumAnti);
-    selvalegre.push(acumSelv);
-    campeon.push(acumCamp);
-    totals.push(parseNumber(r[5]));
+    armaduro.push(parseNumber(r[1]));
+    armaduro_antihumedad.push(parseNumber(r[2]));
+    selvalegre.push(parseNumber(r[3]));
+    campeon.push(parseNumber(r[4]));
+    totals.push(parseNumber(r[6]));
   });
 
   const ctx = document.getElementById('acumChart').getContext('2d');
@@ -257,6 +253,8 @@ function createAccumChart(data) {
           label: 'Selvalegre',
           data: selvalegre,
           borderColor: COLORS.selvalegre,
+          backgroundColor: 'rgba(111, 217, 84, 0.1)',
+          fill: true,
           tension: 0.3,
           borderWidth: 1.5,
           pointRadius: 0,
@@ -266,6 +264,8 @@ function createAccumChart(data) {
           label: 'Armaduro',
           data: armaduro,
           borderColor: COLORS.armaduro,
+          backgroundColor: 'rgba(59,130,246,0.1)',
+          fill: true,
           tension: 0.3,
           borderWidth: 1.5,
           pointRadius: 0,
@@ -275,6 +275,8 @@ function createAccumChart(data) {
           label: 'Armaduro Antihumedad',
           data: armaduro_antihumedad,
           borderColor: COLORS.armaduro_antihumedad,
+          backgroundColor: 'rgba(139,92,246,0.1)',
+          fill: true,
           tension: 0.3,
           borderWidth: 1.5,
           pointRadius: 0,
@@ -350,16 +352,58 @@ function createPieChart(data) {
   });
 }
 
-function createBarChart(data) {
-  if (!data.sacosLatest.rows.length) return;
-  const r = data.sacosLatest.rows[0];
+// function createBarChart(data) {
+//   if (!data.sacosLatest.rows.length) return;
+//   const r = data.sacosLatest.rows[0];
+//   const items = [
+//     { label: 'Armaduro', value: parseNumber(r[2]), color: COLORS.armaduro },
+//     { label: 'Armaduro Antihumedad', value: parseNumber(r[3]), color: COLORS.armaduro_antihumedad },
+//     { label: 'Selvalegre', value: parseNumber(r[4]), color: COLORS.selvalegre },
+//     { label: 'Campeón', value: parseNumber(r[5]), color: COLORS.campeon },
+//   ].filter(i => i.value > 0);
+//   const ctx = document.getElementById('barChart').getContext('2d');
+//   if (charts.bar) charts.bar.destroy();
+//   const defaults = getChartDefaults();
+//   charts.bar = new Chart(ctx, {
+//     type: 'bar',
+//     data: {
+//       labels: items.map(i => i.label),
+//       datasets: [{ label: 'Sacos', data: items.map(i => i.value),
+//         backgroundColor: items.map(i => i.color + '80'),
+//         borderColor: items.map(i => i.color),
+//         borderWidth: 1, borderRadius: 6, barPercentage: 0.6 }],
+//     },
+//     options: { ...defaults, plugins: { ...defaults.plugins, legend: { display: false } } },
+//   });
+// }
 
-  const items = [
-    { label: 'Armaduro', value: parseNumber(r[2]), color: COLORS.armaduro },
-    { label: 'Armaduro Antihumedad', value: parseNumber(r[3]), color: COLORS.armaduro_antihumedad },
-    { label: 'Selvalegre', value: parseNumber(r[4]), color: COLORS.selvalegre },
-    { label: 'Campeón', value: parseNumber(r[5]), color: COLORS.campeon },
-  ].filter(i => i.value > 0);
+function createBarChart(data) {
+  const parseMs = s => s ? new Date(String(s).replace(' ', 'T')).getTime() : 0;
+  const sixHoursAgo = Date.now() - 6 * 3600 * 1000;
+
+  // Sacos: revertir a ASC y filtrar últimas 6 horas
+  const sacosRows = [...data.sacosHistory.rows]
+    .reverse()
+    .filter(r => parseMs(r[0]) >= sixHoursAgo);
+
+  // Capas: revertir a ASC
+  const capasRows = [...data.capasHistory.rows].reverse();
+
+  const labels = sacosRows.map(r => formatTime(r[0]));
+  const sacosData = sacosRows.map(r => parseNumber(r[6])); // H = total sacos
+
+  // Para cada timestamp de sacos, buscar el valor de pallets más cercano en capas
+  const capasData = sacosRows.map(r => {
+    const t = parseMs(r[0]);
+    if (!capasRows.length) return 0;
+    let best = capasRows[0];
+    let minDiff = Math.abs(parseMs(capasRows[0][0]) - t);
+    for (const cr of capasRows) {
+      const diff = Math.abs(parseMs(cr[0]) - t);
+      if (diff < minDiff) { minDiff = diff; best = cr; }
+    }
+    return parseNumber(best[5]); // J = total pallets acumulados
+  });
 
   const ctx = document.getElementById('barChart').getContext('2d');
   if (charts.bar) charts.bar.destroy();
@@ -368,22 +412,42 @@ function createBarChart(data) {
   charts.bar = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: items.map(i => i.label),
-      datasets: [{
-        label: 'Sacos',
-        data: items.map(i => i.value),
-        backgroundColor: items.map(i => i.color + '80'),
-        borderColor: items.map(i => i.color),
-        borderWidth: 1,
-        borderRadius: 6,
-        barPercentage: 0.6,
-      }],
+      labels,
+      datasets: [
+        {
+          label: 'Total Sacos',
+          data: sacosData,
+          // backgroundColor: COLORS.total + '70',
+          // borderColor: COLORS.total,
+          backgroundColor: '#2fd726' + '70',
+          borderColor: '#2fd726',
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.8,
+          categoryPercentage: 0.75,
+        },
+        {
+          label: 'Total Pallets',
+          data: capasData,
+          // backgroundColor: COLORS.pallet + '70',
+          // borderColor: COLORS.pallet,
+          backgroundColor: '#ff6a00' + '70',
+          borderColor: '#f36500',
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.8,
+          categoryPercentage: 0.75,
+        },
+      ],
     },
     options: {
       ...defaults,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         ...defaults.plugins,
-        legend: { display: false },
+        legend: {
+          labels: { color: '#9aa0b0', font: { family: 'Inter', size: 11 }, padding: 16 },
+        },
       },
     },
   });
@@ -435,7 +499,173 @@ function startRefreshTimer() {
   }, msUntilNext);
 }
 
+function toggleRangePanel() {
+  if (rangeMode) {
+    clearRangeFilter();
+    return;
+  }
+  const section = document.getElementById('rangeSection');
+  section.style.display = section.style.display === 'none' ? 'block' : 'none';
+}
+
+function setPreset(hours) {
+  const now   = new Date();
+  const start = new Date(now.getTime() - hours * 3600000);
+  const fmt   = d => {
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  document.getElementById('rfStart').value = fmt(start);
+  document.getElementById('rfEnd').value   = fmt(now);
+  applyRangeFilter();
+}
+
+async function loadRangeData(startDt, endDt) {
+  const inRange = r => {
+    const dt = r[1] ? String(r[1]).substring(0, 16) : '';
+    return dt >= startDt && dt <= endDt;
+  };
+
+  const toMs = s => s ? new Date(String(s).replace(' ', 'T')).getTime() : 0;
+
+  // delta entre fila inicio y fin del rango; si es negativo (reset) usa valor final
+  const delta = (endRow, startRow, col) => {
+    const d = parseNumber(endRow[col]) - parseNumber(startRow[col]);
+    return String(d >= 0 ? d : parseNumber(endRow[col]));
+  };
+
+  const [sacosAll, capasAll, selvAll] = await Promise.all([
+    fetchSheetData(SHEETS.sacosArmAnt, 'SELECT * ORDER BY B DESC LIMIT 5000'),
+    fetchSheetData(SHEETS.capas, "SELECT * WHERE A != 'periodo_inicio' ORDER BY B DESC LIMIT 5000"),
+    fetchSheetData(SHEETS.sacosSelvAnt, 'SELECT * ORDER BY B DESC LIMIT 5000'),
+  ]);
+
+  const sacosFiltered = sacosAll.rows.filter(inRange); // DESC: [0]=más reciente
+  const capasFiltered = capasAll.rows.filter(inRange);
+  const selvFiltered  = selvAll.rows.filter(inRange);
+
+  // ── Sacos KPI: fila sintética con deltas del rango ──────────────────────
+  const sacosEnd   = sacosFiltered[0];
+  const sacosStart = sacosFiltered[sacosFiltered.length - 1];
+  let sacosKpiRow;
+  if (sacosEnd && sacosStart && sacosEnd !== sacosStart) {
+    const durMin = Math.round((toMs(sacosEnd[1]) - toMs(sacosStart[1])) / 60000);
+    sacosKpiRow = [
+      sacosStart[1],   // A: inicio del rango como periodo_inicio
+      sacosEnd[1],     // B: fin del rango
+      delta(sacosEnd, sacosStart, 2),  // C armaduro
+      delta(sacosEnd, sacosStart, 3),  // D armaduro antihumedad
+      delta(sacosEnd, sacosStart, 4),  // E selvalegre
+      delta(sacosEnd, sacosStart, 5),  // F campeon
+      delta(sacosEnd, sacosStart, 6),  // G tracker
+      delta(sacosEnd, sacosStart, 7),  // H total
+      String(durMin),                  // I duracion_min
+    ];
+  } else {
+    sacosKpiRow = sacosEnd;
+  }
+
+  // ── Capas KPI: pallets producidos en el rango ────────────────────────────
+  const capasEnd   = capasFiltered[0];
+  const capasStart = capasFiltered[capasFiltered.length - 1];
+  let capasKpiRow;
+  if (capasEnd && capasStart && capasEnd !== capasStart) {
+    capasKpiRow = [...capasEnd];
+    const dPallets = parseNumber(capasEnd[9]) - parseNumber(capasStart[9]);
+    capasKpiRow[9] = String(dPallets >= 0 ? dPallets : parseNumber(capasEnd[9]));
+    const dSacos = parseNumber(capasEnd[7]) - parseNumber(capasStart[7]);
+    capasKpiRow[7] = String(dSacos >= 0 ? dSacos : parseNumber(capasEnd[7]));
+  } else {
+    capasKpiRow = capasEnd;
+  }
+
+  // ── Selvalegre KPI ───────────────────────────────────────────────────────
+  const selvEnd   = selvFiltered[0];
+  const selvStart = selvFiltered[selvFiltered.length - 1];
+  let selvKpiRow;
+  if (selvEnd && selvStart && selvEnd !== selvStart) {
+    selvKpiRow = [...selvEnd];
+    const dSelv = parseNumber(selvEnd[5]) - parseNumber(selvStart[5]);
+    selvKpiRow[5] = String(dSelv >= 0 ? dSelv : parseNumber(selvEnd[5]));
+  } else {
+    selvKpiRow = selvEnd;
+  }
+
+  // ── Convertir para gráficos (sin cambios) ────────────────────────────────
+  const sacosHistRows = sacosFiltered.map(r => [r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]);
+  const capasHistRows = capasFiltered.map(r => [r[1], r[2], r[5], r[6], r[7]]);
+
+  return {
+    sacosLatest:  { headers: sacosAll.headers,          rows: sacosKpiRow ? [sacosKpiRow] : [] },
+    sacosHistory: { headers: sacosAll.headers.slice(1), rows: sacosHistRows },
+    capasLatest:  { headers: capasAll.headers,          rows: capasKpiRow ? [capasKpiRow] : [] },
+    capasHistory: { headers: capasAll.headers.slice(1), rows: capasHistRows },
+    selvLatest:   { headers: selvAll.headers,           rows: selvKpiRow  ? [selvKpiRow]  : [] },
+  };
+}
+
+async function applyRangeFilter() {
+  const startEl = document.getElementById('rfStart');
+  const endEl   = document.getElementById('rfEnd');
+  const status  = document.getElementById('rfStatus');
+  const btn     = document.getElementById('rfApplyBtn');
+
+  if (!startEl.value || !endEl.value) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Seleccione fecha de inicio y fin.';
+    return;
+  }
+  if (startEl.value >= endEl.value) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'La fecha de inicio debe ser anterior a la fecha fin.';
+    return;
+  }
+
+  btn.disabled = true;
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'Cargando datos del rango...';
+
+  try {
+    const data = await loadRangeData(
+      startEl.value.replace('T', ' '),
+      endEl.value.replace('T', ' ')
+    );
+
+    rangeMode = true;
+    const badge = document.getElementById('statusBadge');
+    badge.classList.remove('error');
+    badge.classList.add('historical');
+    badge.querySelector('span:last-child').textContent = 'Historial';
+
+    updateKPIs(data);
+    updateTable(data);
+    createAccumChart(data);
+    createPieChart(data);
+    createBarChart(data);
+
+    const n = data.sacosHistory.rows.length;
+    status.style.color = n > 0 ? 'var(--green)' : 'var(--orange)';
+    status.textContent = n > 0 ? `${n} registro(s) en el rango seleccionado.` : 'Sin datos en ese período.';
+  } catch (err) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function clearRangeFilter() {
+  rangeMode = false;
+  document.getElementById('rangeSection').style.display = 'none';
+  document.getElementById('rfStatus').textContent = '';
+  const badge = document.getElementById('statusBadge');
+  badge.classList.remove('historical');
+  badge.querySelector('span:last-child').textContent = 'En vivo';
+  await refreshData();
+}
+
 async function refreshData() {
+  if (rangeMode) return;
   try {
     const statusBadge = document.getElementById('statusBadge');
     statusBadge.classList.remove('error');
@@ -458,7 +688,7 @@ async function refreshData() {
     console.error('Error refreshing data:', err);
     const statusBadge = document.getElementById('statusBadge');
     statusBadge.classList.add('error');
-    statusBadge.querySelector('span:last-child').textContent = 'Error de conexión';
+    statusBadge.querySelector('span:last-child').textContent = `Error: ${err.message}`;
   }
 }
 
@@ -516,6 +746,14 @@ async function init() {
       `<p style="color: var(--red);">Error al cargar datos. Verifique la conexión.</p>
        <button onclick="location.reload()" style="margin-top:12px;padding:8px 20px;background:var(--blue);color:white;border:none;border-radius:8px;cursor:pointer;">Reintentar</button>`;
   }
+}
+
+function toggleCameras() {
+  const section = document.getElementById('camerasSection');
+  const btn = document.getElementById('camToggleBtn');
+  const visible = section.style.display !== 'none';
+  section.style.display = visible ? 'none' : 'grid';
+  btn.classList.toggle('active', !visible);
 }
 
 function toggleDownload() {

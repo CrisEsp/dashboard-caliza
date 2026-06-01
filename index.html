@@ -34,7 +34,14 @@
         </svg>
         Exportar Reporte
       </button>
-      <div class="status-badge" id="statusBadge">
+      <button class="export-btn" id="camToggleBtn" onclick="toggleCameras()" title="Mostrar/ocultar cámaras en vivo">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M23 7l-7 5 7 5V7z"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+        Cámaras
+      </button>
+      <div class="status-badge" id="statusBadge" onclick="toggleRangePanel()" title="Clic para filtrar por rango de fechas">
         <span class="status-dot"></span>
         <span>En vivo</span>
       </div>
@@ -90,6 +97,55 @@
       </div>
     </section>
 
+    <!-- Range Filter Panel -->
+    <section class="download-section" id="rangeSection" style="display:none">
+      <div class="download-card range-card">
+        <div class="download-header">
+          <div class="download-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <h3>Visualizar Rango de Tiempo</h3>
+          </div>
+          <span class="badge badge-orange">Modo Historial</span>
+        </div>
+        <div class="preset-group">
+          <span class="preset-label">Rápido:</span>
+          <button class="preset-btn" onclick="setPreset(3)">3 horas</button>
+          <button class="preset-btn" onclick="setPreset(6)">6 horas</button>
+          <button class="preset-btn" onclick="setPreset(12)">12 horas</button>
+          <button class="preset-btn" onclick="setPreset(24)">1 día</button>
+          <button class="preset-btn" onclick="setPreset(48)">2 días</button>
+        </div>
+        <div class="download-controls">
+          <div class="dl-field">
+            <label for="rfStart">Período Inicio</label>
+            <input type="datetime-local" id="rfStart" class="dl-input">
+          </div>
+          <div class="dl-field">
+            <label for="rfEnd">Período Fin</label>
+            <input type="datetime-local" id="rfEnd" class="dl-input">
+          </div>
+          <button id="rfApplyBtn" class="dl-btn" onclick="applyRangeFilter()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Aplicar
+          </button>
+          <button class="dl-btn dl-btn-secondary" onclick="clearRangeFilter()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/>
+            </svg>
+            Volver a En vivo
+          </button>
+        </div>
+        <p class="dl-hint" id="rfStatus"></p>
+      </div>
+    </section>
+
     <!-- KPI Cards -->
     <section class="kpi-grid">
       <div class="kpi-card" id="kpiTotalSacos">
@@ -123,12 +179,13 @@
       </div>
 
       <div class="kpi-card" id="kpiSelvalegre">
-        <div class="kpi-icon purple">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="1" y="3" width="15" height="13"/>
-            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-            <circle cx="5.5" cy="18.5" r="2.5"/>
-            <circle cx="18.5" cy="18.5" r="2.5"/>
+        <div class="kpi-icon green">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 8h14v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8z"/>
+            <path d="M8 8V5.5C8 4.7 8.7 4 9.5 4h5C15.3 4 16 4.7 16 5.5V8"/>
+            <line x1="5" y1="13" x2="19" y2="13"/>
+            <line x1="8" y1="16.5" x2="16" y2="16.5" stroke-width="1.2"/>
+            <line x1="10" y1="18.5" x2="14" y2="18.5" stroke-width="1"/>
           </svg>
         </div>
         <div class="kpi-content">
@@ -181,7 +238,7 @@
     </section>
 
     <!-- Camera Feeds -->
-    <section class="cameras-row">
+    <section class="cameras-row" id="camerasSection" style="display:none">
       <div class="camera-card">
         <div class="camera-header">
           <div class="camera-title">
@@ -256,7 +313,7 @@
     <section class="charts-row equal">
       <div class="chart-card">
         <div class="chart-header">
-          <h3>Producción por Marca</h3>
+          <h3>Conteo Total: Sacos vs Pallets</h3>
         </div>
         <div class="chart-container">
           <canvas id="barChart"></canvas>
