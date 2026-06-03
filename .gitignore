@@ -1,8 +1,24 @@
-node_modules/
+# Archivos con credenciales — NUNCA subir a Git
+.env
+config.js
+
+# Claude Code interno
+.claude/
+.mcp.json
+
+# Streams de cámaras generados por FFmpeg
+streams/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
-.env
-.env.local
-.vercel
-.mcp.json
-.claude/
+desktop.ini
+
+# Editor
+.vscode/settings.json
+*.swp

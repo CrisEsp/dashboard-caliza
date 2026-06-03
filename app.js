@@ -1,11 +1,9 @@
-const SPREADSHEET_ID = '1nFekuqaEblC0Sti9VzwAPVDOWwWj3jO2XphW0XnL9mE';
+const SPREADSHEET_ID = CONFIG.SPREADSHEET_ID;
 const REFRESH_INTERVAL = 15 * 60 * 1000;
 
-// IP de la PC donde corre FFmpeg + server.py (cambiar si es distinta)
-const CAMERA_HOST = '10.52.0.108';
 const CAMERA_STREAMS = {
-  sacos:   `http://${CAMERA_HOST}:8080/streams/sacos.m3u8`,
-  pallets: `http://${CAMERA_HOST}:8080/streams/pallets.m3u8`,
+  sacos:   `http://${CONFIG.CAMERA_HOST}:8080/streams/sacos.m3u8`,
+  pallets: `http://${CONFIG.CAMERA_HOST}:8080/streams/pallets.m3u8`,
 };
 
 const SHEETS = {
@@ -379,12 +377,13 @@ function createPieChart(data) {
 
 function createBarChart(data) {
   const parseMs = s => s ? new Date(String(s).replace(' ', 'T')).getTime() : 0;
-  const sixHoursAgo = Date.now() - 6 * 3600 * 1000;
 
-  // Sacos: revertir a ASC y filtrar últimas 6 horas
-  const sacosRows = [...data.sacosHistory.rows]
-    .reverse()
-    .filter(r => parseMs(r[0]) >= sixHoursAgo);
+  // En modo en vivo filtra últimas 6h; en modo historial usa todos los datos del rango
+  let sacosRows = [...data.sacosHistory.rows].reverse();
+  if (!rangeMode) {
+    const sixHoursAgo = Date.now() - 6 * 3600 * 1000;
+    sacosRows = sacosRows.filter(r => parseMs(r[0]) >= sixHoursAgo);
+  }
 
   // Capas: revertir a ASC
   const capasRows = [...data.capasHistory.rows].reverse();
@@ -544,40 +543,24 @@ async function loadRangeData(startDt, endDt) {
   const capasFiltered = capasAll.rows.filter(inRange);
   const selvFiltered  = selvAll.rows.filter(inRange);
 
-  // ── Sacos KPI: fila sintética con deltas del rango ──────────────────────
+  // ── Sacos KPI: usa la fila más reciente del rango + duración calculada ──
   const sacosEnd   = sacosFiltered[0];
   const sacosStart = sacosFiltered[sacosFiltered.length - 1];
   let sacosKpiRow;
-  if (sacosEnd && sacosStart && sacosEnd !== sacosStart) {
-    const durMin = Math.round((toMs(sacosEnd[1]) - toMs(sacosStart[1])) / 60000);
-    sacosKpiRow = [
-      sacosStart[1],   // A: inicio del rango como periodo_inicio
-      sacosEnd[1],     // B: fin del rango
-      delta(sacosEnd, sacosStart, 2),  // C armaduro
-      delta(sacosEnd, sacosStart, 3),  // D armaduro antihumedad
-      delta(sacosEnd, sacosStart, 4),  // E selvalegre
-      delta(sacosEnd, sacosStart, 5),  // F campeon
-      delta(sacosEnd, sacosStart, 6),  // G tracker
-      delta(sacosEnd, sacosStart, 7),  // H total
-      String(durMin),                  // I duracion_min
-    ];
-  } else {
-    sacosKpiRow = sacosEnd;
+  if (sacosEnd) {
+    sacosKpiRow = [...sacosEnd]; // copia la fila más reciente (valores acumulados al fin del rango)
+    if (sacosStart && sacosEnd !== sacosStart) {
+      // Reemplaza solo la duración con el tiempo real del rango seleccionado
+      const durMin = Math.round((toMs(sacosEnd[1]) - toMs(sacosStart[1])) / 60000);
+      sacosKpiRow[0] = sacosStart[1]; // periodo_inicio = primer timestamp del rango
+      sacosKpiRow[8] = String(durMin);
+    }
   }
 
-  // ── Capas KPI: pallets producidos en el rango ────────────────────────────
+  // ── Capas KPI: fila más reciente del rango ───────────────────────────────
   const capasEnd   = capasFiltered[0];
   const capasStart = capasFiltered[capasFiltered.length - 1];
-  let capasKpiRow;
-  if (capasEnd && capasStart && capasEnd !== capasStart) {
-    capasKpiRow = [...capasEnd];
-    const dPallets = parseNumber(capasEnd[9]) - parseNumber(capasStart[9]);
-    capasKpiRow[9] = String(dPallets >= 0 ? dPallets : parseNumber(capasEnd[9]));
-    const dSacos = parseNumber(capasEnd[7]) - parseNumber(capasStart[7]);
-    capasKpiRow[7] = String(dSacos >= 0 ? dSacos : parseNumber(capasEnd[7]));
-  } else {
-    capasKpiRow = capasEnd;
-  }
+  const capasKpiRow = capasEnd ? [...capasEnd] : undefined;
 
   // ── Selvalegre KPI ───────────────────────────────────────────────────────
   const selvEnd   = selvFiltered[0];
@@ -593,7 +576,8 @@ async function loadRangeData(startDt, endDt) {
 
   // ── Convertir para gráficos (sin cambios) ────────────────────────────────
   const sacosHistRows = sacosFiltered.map(r => [r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]);
-  const capasHistRows = capasFiltered.map(r => [r[1], r[2], r[5], r[6], r[7]]);
+  // capas SELECT *: A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9)
+  const capasHistRows = capasFiltered.map(r => [r[1], r[2], r[5], r[6], r[7], r[9]]);
 
   return {
     sacosLatest:  { headers: sacosAll.headers,          rows: sacosKpiRow ? [sacosKpiRow] : [] },
@@ -833,4 +817,44 @@ async function downloadData() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// ── Autenticación ─────────────────────────────────────────────────────────────
+
+function handleLogin(e) {
+  e.preventDefault();
+  const user  = document.getElementById('loginUser').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const error = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
+
+  if (user === CONFIG.AUTH.USER && pass === CONFIG.AUTH.PASS) {
+    sessionStorage.setItem('unacem_auth', btoa(`${user}:${Date.now()}`));
+    document.getElementById('loginOverlay').classList.add('hidden');
+    init();
+  } else {
+    error.textContent = 'Usuario o contraseña incorrectos.';
+    btn.disabled = true;
+    setTimeout(() => { btn.disabled = false; }, 2000); // bloqueo 2s anti-fuerza bruta
+  }
+}
+
+function togglePassword() {
+  const input = document.getElementById('loginPass');
+  const icon  = document.getElementById('eyeIcon');
+  const show  = input.type === 'password';
+  input.type  = show ? 'text' : 'password';
+  icon.innerHTML = show
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
+
+function logout() {
+  sessionStorage.removeItem('unacem_auth');
+  location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('unacem_auth')) {
+    document.getElementById('loginOverlay').classList.add('hidden');
+    init();
+  }
+});

@@ -4,21 +4,25 @@ import threading
 import signal
 import sys
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+from dotenv import load_dotenv
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Cargar variables del archivo .env
+load_dotenv()
+
+BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 STREAMS_DIR = os.path.join(BASE_DIR, 'streams')
 
 CAMERAS = [
     {
-        'nombre': 'Sacos',
-        'rtsp':   'rtsp://admin:envase_2025@10.52.4.133/Streaming/Channels/101',
-        'salida': os.path.join(STREAMS_DIR, 'sacos.m3u8'),
+        'nombre':   'Sacos',
+        'rtsp':     os.getenv('SACOS_RTSP'),
+        'salida':   os.path.join(STREAMS_DIR, 'sacos.m3u8'),
         'segmento': os.path.join(STREAMS_DIR, 'sacos_%03d.ts'),
     },
     {
-        'nombre': 'Pallets',
-        'rtsp':   'rtsp://admin:envase_2025@10.52.4.146/Streaming/Channels/101',
-        'salida': os.path.join(STREAMS_DIR, 'pallets.m3u8'),
+        'nombre':   'Pallets',
+        'rtsp':     os.getenv('PALLETS_RTSP'),
+        'salida':   os.path.join(STREAMS_DIR, 'pallets.m3u8'),
         'segmento': os.path.join(STREAMS_DIR, 'pallets_%03d.ts'),
     },
 ]
@@ -27,6 +31,9 @@ procesos = []
 
 
 def iniciar_ffmpeg(cam):
+    if not cam['rtsp']:
+        print(f"[{cam['nombre']}] ERROR: URL RTSP no configurada en .env")
+        return
     cmd = [
         'ffmpeg', '-y',
         '-rtsp_transport', 'tcp',
@@ -80,8 +87,8 @@ if __name__ == '__main__':
         t = threading.Thread(target=iniciar_ffmpeg, args=(cam,), daemon=True)
         t.start()
 
-    port = 8080
+    port = int(os.getenv('SERVER_PORT', 8080))
     server = HTTPServer(('0.0.0.0', port), CORSHandler)
-    print(f'Servidor HLS activo en http://10.52.0.108:{port}/streams/')
+    print(f'Servidor HLS activo en puerto {port}')
     print('Presiona Ctrl+C para detener todo')
     server.serve_forever()
