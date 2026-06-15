@@ -24,6 +24,7 @@ const COLORS = {
 
 let charts = {};
 let rangeMode = false;
+let lastData = null;
 
 function buildGvizUrl(sheet, query) {
   const base = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq`;
@@ -171,19 +172,26 @@ function updateTable(data) {
 }
 
 function getChartDefaults() {
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const gridColor = isDark ? 'rgba(74, 110, 167, 0.07)' : 'rgba(164, 150, 150, 0.08)';
+  const tickColor = isDark ? '#6b7280' : '#9ca3af';
+  const tooltipBg = isDark ? '#1e2130' : '#ffffff';
+  const tooltipBorder = isDark ? '#2a2d3e' : '#e5e7eb';
+  const tooltipTitle = isDark ? '#e8eaed' : '#111827';
+  const tooltipBody = isDark ? '#9aa0b0' : '#6b7280';
   return {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        labels: { color: '#9aa0b0', font: { family: 'Inter', size: 11 }, padding: 16 }
+        labels: { color: isDark ? '#9aa0b0' : '#6b7280', font: { family: 'Inter', size: 11 }, padding: 16 }
       },
       tooltip: {
-        backgroundColor: '#1e2130',
-        borderColor: '#2a2d3e',
+        backgroundColor: tooltipBg,
+        borderColor: tooltipBorder,
         borderWidth: 1,
-        titleColor: '#e8eaed',
-        bodyColor: '#9aa0b0',
+        titleColor: tooltipTitle,
+        bodyColor: tooltipBody,
         padding: 10,
         cornerRadius: 8,
         titleFont: { family: 'Inter', weight: '600' },
@@ -195,19 +203,30 @@ function getChartDefaults() {
     },
     scales: {
       x: {
-        ticks: { color: '#6b7280', font: { family: 'Inter', size: 10 } },
-        grid: { color: 'rgba(42,45,62,0.5)', drawBorder: false },
+        ticks: { color: tickColor, font: { family: 'Inter', size: 10 } },
+        grid: { display:false },
+        // grid: { color: 'rgba(42,45,62,0.5)', drawBorder: false },
       },
       y: {
         ticks: {
-          color: '#6b7280',
+          color: tickColor,
           font: { family: 'Inter', size: 10 },
           callback: (v) => formatNumber(v),
         },
-        grid: { color: 'rgba(42,45,62,0.5)', drawBorder: false },
+        // grid: { display:false },
+        grid: { color: gridColor, drawBorder: false },
+
+
       },
     },
   };
+}
+
+function redrawCharts() {
+  if (!lastData) return;
+  createAccumChart(lastData);
+  createPieChart(lastData);
+  createBarChart(lastData);
 }
 
 function createAccumChart(data) {
@@ -308,6 +327,8 @@ function createPieChart(data) {
   const ctx = document.getElementById('pieChart').getContext('2d');
   if (charts.pie) charts.pie.destroy();
 
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const d = getChartDefaults();
   charts.pie = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -315,7 +336,7 @@ function createPieChart(data) {
       datasets: [{
         data: values,
         backgroundColor: colors,
-        borderColor: '#1e2130',
+        borderColor: isDark ? '#1e2130' : '#f9fafb',
         borderWidth: 3,
         hoverOffset: 8,
       }],
@@ -327,14 +348,14 @@ function createPieChart(data) {
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { color: '#9aa0b0', font: { family: 'Inter', size: 11 }, padding: 12 },
+          labels: { color: d.plugins.legend.labels.color, font: { family: 'Inter', size: 11 }, padding: 12 },
         },
         tooltip: {
-          backgroundColor: '#1e2130',
-          borderColor: '#2a2d3e',
+          backgroundColor: d.plugins.tooltip.backgroundColor,
+          borderColor: d.plugins.tooltip.borderColor,
           borderWidth: 1,
-          titleColor: '#e8eaed',
-          bodyColor: '#9aa0b0',
+          titleColor: d.plugins.tooltip.titleColor,
+          bodyColor: d.plugins.tooltip.bodyColor,
           padding: 10,
           cornerRadius: 8,
           callbacks: {
@@ -490,7 +511,8 @@ function createPalletChart(data) {
 function startRefreshTimer() {
   const now = new Date();
   const msElapsed = (now.getMinutes() % 15) * 60000 + now.getSeconds() * 1000 + now.getMilliseconds();
-  const msUntilNext = REFRESH_INTERVAL - msElapsed;
+  // +45s tras la marca para que Google Sheets termine de escribir la fila antes de consultar
+  const msUntilNext = (REFRESH_INTERVAL - msElapsed) + 5 * 1000;
 
   setTimeout(() => {
     refreshData();
@@ -508,14 +530,18 @@ function toggleRangePanel() {
 }
 
 function setPreset(hours) {
-  const now   = new Date();
-  const start = new Date(now.getTime() - hours * 3600000);
-  const fmt   = d => {
+  const now = new Date();
+  // Redondear FIN hacia abajo a la última marca de 15min
+  const end = new Date(now);
+  end.setMinutes(Math.floor(now.getMinutes() / 15) * 15, 0, 0);
+  // Inicio = fin - horas exactas → duración siempre exacta
+  const start = new Date(end.getTime() - hours * 3600000);
+  const fmt = d => {
     const p = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   };
   document.getElementById('rfStart').value = fmt(start);
-  document.getElementById('rfEnd').value   = fmt(now);
+  document.getElementById('rfEnd').value   = fmt(end);
   applyRangeFilter();
 }
 
@@ -527,10 +553,23 @@ async function loadRangeData(startDt, endDt) {
 
   const toMs = s => s ? new Date(String(s).replace(' ', 'T')).getTime() : 0;
 
-  // delta entre fila inicio y fin del rango; si es negativo (reset) usa valor final
+  // delta simple (solo para rangos sin reset)
   const delta = (endRow, startRow, col) => {
     const d = parseNumber(endRow[col]) - parseNumber(startRow[col]);
     return String(d >= 0 ? d : parseNumber(endRow[col]));
+  };
+
+  // Suma incrementos positivos — maneja resets del contador entre turnos/días
+  const sumIncrements = (rows, col) => {
+    if (!rows.length) return 0;
+    if (rows.length === 1) return parseNumber(rows[0][col]);
+    const asc = [...rows].reverse(); // rows llega DESC, invertir a ASC
+    let total = 0;
+    for (let i = 1; i < asc.length; i++) {
+      const diff = parseNumber(asc[i][col]) - parseNumber(asc[i - 1][col]);
+      if (diff > 0) total += diff;
+    }
+    return total;
   };
 
   const [sacosAll, capasAll, selvAll] = await Promise.all([
@@ -548,11 +587,14 @@ async function loadRangeData(startDt, endDt) {
   const sacosStart = sacosFiltered[sacosFiltered.length - 1];
   let sacosKpiRow;
   if (sacosEnd) {
-    sacosKpiRow = [...sacosEnd]; // copia la fila más reciente (valores acumulados al fin del rango)
+    sacosKpiRow = [...sacosEnd];
     if (sacosStart && sacosEnd !== sacosStart) {
-      // Reemplaza solo la duración con el tiempo real del rango seleccionado
-      const durMin = Math.round((toMs(sacosEnd[1]) - toMs(sacosStart[1])) / 60000);
-      sacosKpiRow[0] = sacosStart[1]; // periodo_inicio = primer timestamp del rango
+      [2, 3, 4, 5, 6, 7].forEach(col => {
+        sacosKpiRow[col] = String(sumIncrements(sacosFiltered, col));
+      });
+      // Usar el rango seleccionado, no los timestamps de los datos (que quedan 15 min cortos)
+      const durMin = Math.round((toMs(endDt) - toMs(startDt)) / 60000);
+      sacosKpiRow[0] = sacosStart[1];
       sacosKpiRow[8] = String(durMin);
     }
   }
@@ -560,7 +602,15 @@ async function loadRangeData(startDt, endDt) {
   // ── Capas KPI: fila más reciente del rango ───────────────────────────────
   const capasEnd   = capasFiltered[0];
   const capasStart = capasFiltered[capasFiltered.length - 1];
-  const capasKpiRow = capasEnd ? [...capasEnd] : undefined;
+  let capasKpiRow;
+  if (capasEnd) {
+    capasKpiRow = [...capasEnd];
+    if (capasStart && capasEnd !== capasStart) {
+      [7, 9].forEach(col => {
+        capasKpiRow[col] = String(sumIncrements(capasFiltered, col));
+      });
+    }
+  }
 
   // ── Selvalegre KPI ───────────────────────────────────────────────────────
   const selvEnd   = selvFiltered[0];
@@ -568,8 +618,7 @@ async function loadRangeData(startDt, endDt) {
   let selvKpiRow;
   if (selvEnd && selvStart && selvEnd !== selvStart) {
     selvKpiRow = [...selvEnd];
-    const dSelv = parseNumber(selvEnd[5]) - parseNumber(selvStart[5]);
-    selvKpiRow[5] = String(dSelv >= 0 ? dSelv : parseNumber(selvEnd[5]));
+    selvKpiRow[5] = String(sumIncrements(selvFiltered, 5));
   } else {
     selvKpiRow = selvEnd;
   }
@@ -621,6 +670,7 @@ async function applyRangeFilter() {
     badge.classList.add('historical');
     badge.querySelector('span:last-child').textContent = 'Historial';
 
+    lastData = data;
     updateKPIs(data);
     updateTable(data);
     createAccumChart(data);
@@ -656,6 +706,7 @@ async function refreshData() {
     statusBadge.querySelector('span:last-child').textContent = 'Actualizando...';
 
     const data = await loadAllData();
+    lastData = data;
     updateKPIs(data);
     updateTable(data);
     createAccumChart(data);

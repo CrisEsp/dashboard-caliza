@@ -49,6 +49,12 @@
         <span>Última actualización</span>
         <strong id="lastUpdate">--:--:--</strong>
       </div>
+      <button class="logout-btn" onclick="window.location.href='/'" title="Menú principal">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Proyectos
+      </button>
       <button class="logout-btn" onclick="logout()" title="Cerrar sesión">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -57,8 +63,25 @@
         </svg>
         Salir
       </button>
+      <button class="theme-toggle-btn" id="themeBtn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
     </div>
   </header>
+  <script>
+    (function(){
+      const t = localStorage.getItem('theme') || 'dark'
+      if(t==='light'){ document.documentElement.setAttribute('data-theme','light'); }
+      const btn = document.getElementById('themeBtn')
+      if(btn) btn.textContent = t==='light' ? '☀️' : '🌙'
+    })()
+    function toggleTheme(){
+      const isLight = document.documentElement.getAttribute('data-theme')==='light'
+      const next = isLight ? 'dark' : 'light'
+      document.documentElement.setAttribute('data-theme', next)
+      localStorage.setItem('theme', next)
+      document.getElementById('themeBtn').textContent = next==='light' ? '☀️' : '🌙'
+      if (typeof redrawCharts === 'function') redrawCharts()
+    }
+  </script>
 
   <main class="dashboard">
     <!-- Download Section -->
