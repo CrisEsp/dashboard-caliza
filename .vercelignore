@@ -1,0 +1,31 @@
+# Controla qué sube Vercel (reemplaza a .gitignore para el deploy).
+# config.js SÍ se sube (lo necesita el login del frontend), pero NO va a Git.
+
+# Secretos que NO deben subirse
+.env
+.env.example
+
+# Interno / herramientas
+.claude/
+.mcp.json
+.vercel
+.git
+
+# Streams generados por FFmpeg
+streams/
+
+# Python (servidor local, no se usa en el deploy estático)
+__pycache__/
+*.pyc
+*.pyo
+server.py
+
+# Imágenes pesadas no referenciadas
+selvalegre.png
+
+# Sistema operativo / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+*.swp
